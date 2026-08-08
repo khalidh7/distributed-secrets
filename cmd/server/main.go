@@ -8,9 +8,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/example/distributed-secrets/internal/api"
-	secretcrypto "github.com/example/distributed-secrets/internal/crypto"
-	"github.com/example/distributed-secrets/internal/storage"
+	"github.com/kabouelrous/distributed-secrets/internal/api"
+	secretcrypto "github.com/kabouelrous/distributed-secrets/internal/crypto"
+	"github.com/kabouelrous/distributed-secrets/internal/storage"
 )
 
 func main() {

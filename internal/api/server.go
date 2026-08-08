@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/example/distributed-secrets/internal/storage"
+	"github.com/kabouelrous/distributed-secrets/internal/storage"
 )
 
 type Server struct {

@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	secretcrypto "github.com/example/distributed-secrets/internal/crypto"
+	secretcrypto "github.com/kabouelrous/distributed-secrets/internal/crypto"
 )
 
 func TestEncryptedPersistenceAndRestart(t *testing.T) {

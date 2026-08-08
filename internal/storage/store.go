@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	secretcrypto "github.com/example/distributed-secrets/internal/crypto"
+	secretcrypto "github.com/kabouelrous/distributed-secrets/internal/crypto"
 )
 
 var ErrNotFound = errors.New("secret not found")
