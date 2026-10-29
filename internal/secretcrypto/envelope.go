@@ -1,4 +1,4 @@
-package crypto
+package secretcrypto
 
 import (
 	"crypto/aes"
@@ -10,15 +10,30 @@ import (
 	"io"
 )
 
+// keysize will be 32bytes = 256 bits for AES-256
 const KeySize = 32
 
 type Ciphertext struct {
+	//holds the encrypted bytes
 	Ciphertext string `json:"ciphertext"`
-	Nonce      string `json:"nonce"`
+	//holds the value needed to decrypt the bytes
+	Nonce string `json:"nonce"`
+}
+
+// Envelope is an encrypted payload plus its independently generated and wrapped
+// data-encryption key. KeyVersion identifies the key-encryption key used.
+type Envelope struct {
+	Ciphertext       string `json:"ciphertext"`
+	Nonce            string `json:"nonce"`
+	EncryptedDataKey string `json:"encrypted_data_key"`
+	DataKeyNonce     string `json:"data_key_nonce"`
+	KeyVersion       int    `json:"key_version"`
 }
 
 func RandomKey() ([]byte, error) {
+	//allocate 32 byte slice
 	key := make([]byte, KeySize)
+	//
 	if _, err := io.ReadFull(rand.Reader, key); err != nil {
 		return nil, fmt.Errorf("generate random key: %w", err)
 	}
@@ -69,6 +84,51 @@ func Decrypt(key []byte, encrypted Ciphertext, aad []byte) ([]byte, error) {
 		return nil, errors.New("decrypt: authentication failed")
 	}
 	return plaintext, nil
+}
+
+func SealEnvelope(kek, plaintext, aad []byte, keyVersion int) (Envelope, error) {
+	dek, err := RandomKey()
+	if err != nil {
+		return Envelope{}, err
+	}
+	defer Zero(dek)
+	payload, err := Encrypt(dek, plaintext, aad)
+	if err != nil {
+		return Envelope{}, err
+	}
+	wrapped, err := Encrypt(kek, dek, append([]byte("wrapped-dek:"), aad...))
+	if err != nil {
+		return Envelope{}, err
+	}
+	return Envelope{Ciphertext: payload.Ciphertext, Nonce: payload.Nonce,
+		EncryptedDataKey: wrapped.Ciphertext, DataKeyNonce: wrapped.Nonce, KeyVersion: keyVersion}, nil
+}
+
+func OpenEnvelope(kek []byte, envelope Envelope, aad []byte) ([]byte, error) {
+	dek, err := Decrypt(kek, Ciphertext{Ciphertext: envelope.EncryptedDataKey, Nonce: envelope.DataKeyNonce}, append([]byte("wrapped-dek:"), aad...))
+	if err != nil {
+		return nil, fmt.Errorf("unwrap data key: %w", err)
+	}
+	defer Zero(dek)
+	return Decrypt(dek, Ciphertext{Ciphertext: envelope.Ciphertext, Nonce: envelope.Nonce}, aad)
+}
+
+func WrapKey(rootKey, key []byte) (Ciphertext, error) {
+	return Encrypt(rootKey, key, []byte("distributed-secrets:kek:v1"))
+}
+
+func UnwrapKey(rootKey []byte, wrapped Ciphertext) ([]byte, error) {
+	key, err := Decrypt(rootKey, wrapped, []byte("distributed-secrets:kek:v1"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid unseal key: %w", err)
+	}
+	return key, nil
+}
+
+func Zero(value []byte) {
+	for i := range value {
+		value[i] = 0
+	}
 }
 
 func newGCM(key []byte) (cipher.AEAD, error) {

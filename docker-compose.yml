@@ -1,0 +1,83 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_PASSWORD: development-only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+    ports: ["5432:5432"]
+
+  node1:
+    build: .
+    hostname: node1.cluster.local
+    ports: ["8441:8443"]
+    environment: &node-env
+      SECRETS_UNSEAL_KEYS: ${SECRETS_UNSEAL_KEYS:?set three comma-separated unseal shares}
+      SECRETS_POSTGRES_URL: postgres://postgres:development-only@postgres:5432/postgres?sslmode=disable
+    volumes:
+      - ./dev/certs:/certs:ro
+      - ./dev/seal:/seal
+      - ./dev/node1:/data
+    command: &node1-command
+      - --addr=:8443
+      - --data-dir=/data
+      - --seal-dir=/seal
+      - --tls-cert=/certs/node1.pem
+      - --tls-key=/certs/node1-key.pem
+      - --node-id=node1
+      - --raft-addr=:7001
+      - --peers=node2=https://node2.cluster.local:7002,node3=https://node3.cluster.local:7003
+      - --node-cert=/certs/node1.pem
+      - --node-key=/certs/node1-key.pem
+      - --cluster-ca=/certs/ca.pem
+    depends_on: [postgres]
+
+  node2:
+    build: .
+    hostname: node2.cluster.local
+    ports: ["8442:8443"]
+    environment: *node-env
+    volumes:
+      - ./dev/certs:/certs:ro
+      - ./dev/seal:/seal
+      - ./dev/node2:/data
+    command:
+      - --addr=:8443
+      - --data-dir=/data
+      - --seal-dir=/seal
+      - --tls-cert=/certs/node2.pem
+      - --tls-key=/certs/node2-key.pem
+      - --node-id=node2
+      - --raft-addr=:7002
+      - --peers=node1=https://node1.cluster.local:7001,node3=https://node3.cluster.local:7003
+      - --node-cert=/certs/node2.pem
+      - --node-key=/certs/node2-key.pem
+      - --cluster-ca=/certs/ca.pem
+    depends_on: [postgres]
+
+  node3:
+    build: .
+    hostname: node3.cluster.local
+    ports: ["8443:8443"]
+    environment: *node-env
+    volumes:
+      - ./dev/certs:/certs:ro
+      - ./dev/seal:/seal
+      - ./dev/node3:/data
+    command:
+      - --addr=:8443
+      - --data-dir=/data
+      - --seal-dir=/seal
+      - --tls-cert=/certs/node3.pem
+      - --tls-key=/certs/node3-key.pem
+      - --node-id=node3
+      - --raft-addr=:7003
+      - --peers=node1=https://node1.cluster.local:7001,node2=https://node2.cluster.local:7002
+      - --node-cert=/certs/node3.pem
+      - --node-key=/certs/node3-key.pem
+      - --cluster-ca=/certs/ca.pem
+    depends_on: [postgres]
+

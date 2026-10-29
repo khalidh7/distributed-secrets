@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	secretcrypto "github.com/example/distributed-secrets/internal/crypto"
-	"github.com/example/distributed-secrets/internal/storage"
+	secretcrypto "github.com/kabouelrous/distributed-secrets/internal/secretcrypto"
+	"github.com/kabouelrous/distributed-secrets/internal/storage"
 )
 
 func TestSecretLifecycleOverTLS(t *testing.T) {

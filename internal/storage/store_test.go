@@ -2,10 +2,11 @@ package storage
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"testing"
 
-	secretcrypto "github.com/kabouelrous/distributed-secrets/internal/crypto"
+	secretcrypto "github.com/kabouelrous/distributed-secrets/internal/secretcrypto"
 )
 
 func TestEncryptedPersistenceAndRestart(t *testing.T) {
@@ -57,5 +58,29 @@ func TestWrongKeyCannotDecrypt(t *testing.T) {
 	}
 	if _, err := reopened.Get("prod/database"); err == nil {
 		t.Fatal("expected decryption with wrong key to fail")
+	}
+}
+
+func TestImmutableVersionsAndSoftDelete(t *testing.T) {
+	key, _ := secretcrypto.RandomKey()
+	store, _ := Open(t.TempDir(), key)
+	first, _ := store.PutVersion("prod/db", map[string]string{"password": "one"})
+	second, _ := store.PutVersion("prod/db", map[string]string{"password": "two"})
+	if first.Version != 1 || second.Version != 2 {
+		t.Fatalf("versions: %d %d", first.Version, second.Version)
+	}
+	value, _ := store.GetVersion("prod/db", 1)
+	if value["password"] != "one" {
+		t.Fatalf("historical value: %#v", value)
+	}
+	if err := store.DeleteVersion("prod/db", 1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.GetVersion("prod/db", 1); !errors.Is(err, ErrDeleted) {
+		t.Fatalf("deleted version: %v", err)
+	}
+	latest, _ := store.Get("prod/db")
+	if latest["password"] != "two" {
+		t.Fatalf("latest changed: %#v", latest)
 	}
 }

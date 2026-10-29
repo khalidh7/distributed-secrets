@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Distributed Secrets</title><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/portfolio.css"><script src="/app.js" defer></script><script src="/cluster.js" defer></script></head>
+<body>
+<header><a class="brand" href="/"><span class="brand-icon">◈</span> distributed<span>secrets</span></a><span class="header-divider"></span><span class="workspace">VAULT</span><div id="connection" class="connection">Connecting…</div></header>
+<section id="shamir-gate" class="shamir-gate" hidden aria-labelledby="unlock-title">
+<div class="unlock-shell">
+<div class="unlock-copy"><div class="eyebrow">SHAMIR SECRET SHARING</div><h1 id="unlock-title">Unlock vault</h1><p>Select three distinct recovery shares to unlock the cluster.</p><div class="unlock-diagram"><span>Share 1</span><span>Share 2</span><span>Share 3</span><b>→</b><strong>ROOT KEY</strong><b>→</b><em>unwrap KEK</em></div><p class="unlock-fact">The root key is never stored. Only the wrapped key-encryption key remains on disk.</p></div>
+<div class="unlock-card"><div class="unlock-card-head"><span>3 OF 5 REQUIRED</span><strong id="unlock-count">0 / 3</strong></div><div id="share-cards" class="share-cards"></div><div class="unlock-progress"><i id="unlock-progress-bar"></i></div><p id="unlock-message" role="status">Choose three recovery shares to begin.</p><button id="unlock-cluster" class="primary" type="button" disabled><span>Unlock vault</span><span>↗</span></button></div>
+</div></section>
+<main>
+<div class="layout">
+<section class="control-panel panel" aria-labelledby="request-heading">
+<div class="section-heading"><h2 id="request-heading">Credentials</h2><span class="tiny"></span></div>
+<div class="tabs" role="tablist" aria-label="Operation"><button type="button" class="tab selected" role="tab" aria-selected="true" data-mode="create">Create</button><button type="button" class="tab" role="tab" aria-selected="false" data-mode="update">Update</button><button type="button" class="tab" role="tab" aria-selected="false" data-mode="read">Read</button><button type="button" class="tab destructive-tab" role="tab" aria-selected="false" data-mode="delete">Delete</button></div>
+<form id="request-form">
+<label for="path">Secret path <span>Namespace / resource</span></label><div class="input-with-prefix"><span>/</span><input id="path" value="sandbox/payments" required autocomplete="off" spellcheck="false"></div>
+<div id="write-fields"><div class="field-label"><label for="secret-key">Credential data</label><span>ENCRYPTED KEY / VALUE</span></div><div id="pairs"><div class="pair"><input id="secret-key" aria-label="Credential key" value="username" required autocomplete="off" spellcheck="false"><input aria-label="Credential value" value="payments-service" required autocomplete="off" spellcheck="false"><button type="button" class="remove-pair" aria-label="Remove field">×</button></div><div class="pair"><input aria-label="Credential key" value="password" required autocomplete="off" spellcheck="false"><input aria-label="Credential value" value="first-password" required autocomplete="off" spellcheck="false"><button type="button" class="remove-pair" aria-label="Remove field">×</button></div></div><button type="button" id="add-field" class="text-button">＋ Add field</button><p class="field-hint">Each save creates an immutable encrypted version replicated through Raft.</p></div>
+<div id="read-fields" hidden><label for="version">Version <span>Leave empty for latest</span></label><input id="version" type="number" min="1" step="1" placeholder="Latest version"></div>
+<div class="token-field"><label for="token">Operator session <span>Created after Shamir unlock</span></label><input id="token" type="password" placeholder="Cluster locked" autocomplete="off" spellcheck="false" readonly></div>
+<button id="submit" class="primary" type="submit"><span>Create credential</span><span>↗</span></button>
+<div id="form-message" role="status" class="form-message"></div>
+</form>
+<details id="vault-tools"><summary>Vault setup <span id="vault-status">Checking status</span></summary><div class="setup-body"><p id="setup-hint">Create a vault, or submit unseal shares after a restart.</p><button type="button" id="initialize" class="secondary">Initialize local vault</button><div id="unseal-fields" hidden><label for="share">Unseal share</label><textarea id="share" rows="2" placeholder="Paste one share" spellcheck="false"></textarea><button type="button" id="unseal" class="secondary">Submit share</button></div><div id="recovery" hidden><p>Save these credentials now. The service returns them only once. The root token expires after 24 hours.</p><button type="button" id="download-recovery" class="secondary">Download recovery kit</button><details><summary>Show recovery credentials</summary><pre id="recovery-data"></pre></details></div><p id="setup-message" role="status"></p></div></details>
+<section id="fault-controls" hidden>
+ <div class="fault-heading"><h3>Cluster controls</h3></div>
+ <button id="drop-leader" class="danger" type="button">Stop leader</button>
+ <button id="restore-cluster" class="secondary" type="button">Start stopped nodes</button>
+ <button id="restart-cluster" class="secondary" type="button">Restart cluster</button>
+ <p id="fault-message" role="status"></p>
+</section>
+<div class="transport-note"><span>↳</span> Browser → local proxy → HTTPS service</div>
+</section>
+<section id="cluster-panel" class="panel" hidden aria-labelledby="cluster-heading">
+ <div class="section-heading"><h2 id="cluster-heading">Raft cluster</h2><span id="cluster-live" class="tiny">CONNECTING</span></div>
+ <div class="cluster-metrics"><div><small>LEADER</small><strong id="cluster-leader">Electing…</strong></div><div><small>CURRENT TERM</small><strong id="cluster-term">—</strong></div><div><small>AVAILABLE</small><strong id="cluster-quorum">— / 3</strong></div><div><small>COMMITTED</small><strong id="cluster-commit">0</strong></div></div>
+ <div id="cluster-banner" role="status">Waiting for a majority…</div>
+ <div class="cluster-graph">
+ <div class="cluster-client"><span>⌘</span> Client request <small>routes to elected leader</small></div>
+ <div class="cluster-network"><svg viewBox="0 0 600 70" preserveAspectRatio="none" aria-hidden="true"><path id="wire-node1" d="M300 0 L300 24 L100 24 L100 70"/><path id="wire-node2" d="M300 0 L300 70"/><path id="wire-node3" d="M300 0 L300 24 L500 24 L500 70"/></svg><span>AppendEntries · heartbeats · RequestVote</span></div>
+ <div id="node-cards" class="node-cards"></div>
+ <div class="graph-legend"><span><i class="legend-leader"></i> Leader</span><span><i class="legend-follower"></i> Follower</span><span><i class="legend-candidate"></i> Candidate</span><span><i class="legend-offline"></i> Offline</span></div>
+ <p class="graph-note">Live status sampled every 200 ms. A pulse indicates a received heartbeat or append RPC; the connecting lines are schematic.</p>
+ </div>
+<div class="wal-section"><div class="subheading"><h3>Write-ahead log · node1</h3><span>FSYNCED BEFORE ACK · PAYLOAD REDACTED</span></div><div class="wal-file"><div class="wal-file-head"><span>raft/raft.wal</span><span id="wal-state">WAITING FOR ENTRIES</span></div><div id="wal-entries" class="wal-entries"><p>No log entries.</p></div></div><p class="wal-explainer">Every mutation is appended and <code>fsync</code>ed before replication. Checksums detect torn or corrupted records during recovery.</p></div>
+<div class="replication-section"><div class="subheading"><h3>Replicated log positions</h3><span>ALL THREE NODES</span></div><div id="log-rows"></div><div class="log-legend"><span>■ Committed & applied</span><span>▧ Persisted, not yet committed</span><span>Each box: index / term · S = snapshot</span></div></div>
+ <div class="events-section"><div class="subheading"><h3>Consensus timeline</h3><span>OBSERVED RAFT EVENTS</span><button id="clear-events" type="button" class="text-button">Clear</button></div><ol id="raft-events"><li class="empty-event">Waiting for cluster events…</li></ol></div>
+ <p class="cluster-footnote">A majority is 2 of 3. A lone leader can still report “leader,” but cannot commit a write. Reads can be stale during recovery.</p>
+</section>
+<section class="visual-panel panel" aria-labelledby="visual-heading">
+<div class="section-heading"><h2 id="visual-heading">Operation details</h2><span id="animation-state" class="tiny">IDLE</span></div>
+<div class="visual-topline"><span id="flow-title">WRITE</span><div class="speed-control"><label for="speed">Playback</label><select id="speed"><option value="1">1×</option><option value="2">2×</option><option value="0.5">0.5×</option></select><button id="replay" type="button" disabled aria-label="Replay animation">↻ Replay</button></div></div>
+<div class="flow-canvas" id="flow-canvas">
+<div class="flow-node" id="node-client"><span class="node-icon">⌘</span><strong>Client request</strong><small>JSON payload</small></div><div class="connector" id="link-0"><span>HTTPS</span><i></i></div>
+<div class="flow-node" id="node-auth"><span class="node-icon">⛨</span><strong>Identity & policy</strong><small>Token + path permissions</small></div><div class="connector" id="link-1"><span>AUTHORIZED</span><i></i></div>
+<div class="crypto-box" id="node-crypto"><div class="crypto-title"><span class="node-icon">◇</span><div><strong>Envelope encryption</strong><small>AES-256-GCM</small></div><span class="crypto-tag">IN MEMORY</span></div><div class="key-chain"><div><span>DEK</span><small>Fresh data key</small></div><b>← wrapped by</b><div><span>KEK</span><small>Vault key</small></div></div><div class="cipher-strip"><span id="payload-label">PLAINTEXT → CIPHERTEXT</span><code id="cipher">•••• •••• •••• •••• ••••</code></div></div>
+<div class="connector" id="link-2"><span>ENCRYPTED RECORD</span><i></i></div><div class="flow-node storage-node" id="node-storage"><span class="node-icon">▤</span><strong>Durable storage</strong><small>Encrypted, versioned record</small><span id="saved-version" class="saved-version">DISK</span></div>
+<div class="canvas-caption"><span class="small-dot"></span> Single-node storage · no Raft replication in this session</div>
+</div>
+<div class="step-description"><span id="step-number">○</span><div><strong id="step-title">No operation selected</strong><p id="step-detail"></p></div></div>
+<div class="timeline" aria-label="Operation stages"><span data-stage="0">Request</span><span data-stage="1">Authorize</span><span data-stage="2">Encrypt</span><span data-stage="3">Persist</span><span data-stage="4">Respond</span></div>
+<p class="explanation-note">Illustrative playback, not server tracing. Responses and version data come from the live API.</p>
+</section>
+</div>
+<section class="response-panel panel"><div class="section-heading"><h2>Service response</h2><span id="response-meta" class="tiny">NO REQUEST YET</span><button id="clear-response" class="text-button" type="button">Clear</button></div><div class="response-body"><div><div class="response-label" id="request-method">WAITING FOR REQUEST</div><p id="response-description"></p><span id="request-id"></span></div><pre id="response" tabindex="0">// No response</pre></div></section>
+
+</main>
+</body></html>
